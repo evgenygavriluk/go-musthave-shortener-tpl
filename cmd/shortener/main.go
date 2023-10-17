@@ -45,8 +45,8 @@ func parseFlags() {
 	fmt.Printf("flagRunAddr = %s", flagRunAddr)
 	fmt.Printf("flagShortAddr = %s", flagShortAddr)
 
-	if string(flagShortAddr)=="http://localhost:8080" {
-		flagShortAddr = flagRunAddr
+	if string(flagRunAddr)!="localhost:8080" {
+		flagShortAddr = "http://"+flagRunAddr
 		fmt.Printf("flagShortAddr = %s", flagShortAddr)
 	}
 } 
