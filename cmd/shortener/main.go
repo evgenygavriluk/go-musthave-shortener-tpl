@@ -48,7 +48,7 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 			urls[res] = string(body)
 			rw.Header().Set("Content-Type", "text/plain")
 			rw.WriteHeader(201)
-			rw.Write([]byte(flagShortAddr + res)) // flagShortAddr = http://localhost:8080/
+			rw.Write([]byte(flagShortAddr + "/" +res)) // flagShortAddr = http://localhost:8080/
 		} else {
 			panic("Something wrong in encoding")
 		}
