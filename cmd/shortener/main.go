@@ -11,8 +11,12 @@ import (
 )
 
 var urls map[string]string // хранилище ссылок
+var flagRunAddr string
+var flagShortAddr string
 
 func main() {
+
+	parseFlags()
 
 	urls = make(map[string]string)
 
@@ -22,7 +26,7 @@ func main() {
 	
 
 	fmt.Println("Server is starter")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(flagRunAddr, r))
 
 }
 
@@ -44,7 +48,7 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 			urls[res] = string(body)
 			rw.Header().Set("Content-Type", "text/plain")
 			rw.WriteHeader(201)
-			rw.Write([]byte("http://localhost:8080/" + res))
+			rw.Write([]byte(flagShortAddr + res)) // flagShortAddr = http://localhost:8080/
 		} else {
 			panic("Something wrong in encoding")
 		}
