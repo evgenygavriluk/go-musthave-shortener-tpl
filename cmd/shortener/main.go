@@ -18,14 +18,18 @@ func main() {
 
 	parseFlags()
 
+
 	urls = make(map[string]string)
 
 	r := chi.NewRouter()
 	r.Post("/", handlerPost)
 	r.Get("/{link}", handlerGet)
+
 	
 
 	fmt.Println("Server is starter")
+	fmt.Println("flagRunAddr = ", flagRunAddr)
+
 	log.Fatal(http.ListenAndServe(flagRunAddr, r))
 
 }

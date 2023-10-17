@@ -2,6 +2,7 @@ package main
 
 import (
     "flag"
+	"fmt"
 )
 
 // неэкспортированная переменная flagRunAddr содержит адрес и порт для запуска сервера
@@ -13,7 +14,15 @@ func parseFlags() {
     // регистрируем переменную flagRunAddr 
     // как аргумент -a со значением :8080 по умолчанию
     flag.StringVar(&flagRunAddr, "a", ":8080", "address and port to run server")
-	flag.StringVar(&flagShortAddr, "s", "http://localhost:8080", "base address and port to short URL")
+	flag.StringVar(&flagShortAddr, "s", ":8080", "base address and port to short URL")
     // парсим переданные серверу аргументы в зарегистрированные переменные
     flag.Parse()
+
+	fmt.Printf("flagRunAddr = %s", flagRunAddr)
+	fmt.Printf("flagShortAddr = %s", flagShortAddr)
+
+	if string(flagShortAddr)==":8080" {
+		flagShortAddr = flagRunAddr
+		fmt.Printf("flagShortAddr = %s", flagShortAddr)
+	}
 } 
