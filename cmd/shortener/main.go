@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"log"
 	"flag"
+	"os"
 )
 
 var urls map[string]string // хранилище ссылок
@@ -34,6 +35,7 @@ func main() {
 
 }
 
+// Обработка флагов командной строкипше сруслщге
 func parseFlags() {
     // регистрируем переменную flagRunAddr 
     // как аргумент -a со значением :8080 по умолчанию
@@ -49,6 +51,17 @@ func parseFlags() {
 		flagShortAddr = "http://"+flagRunAddr
 		fmt.Printf("flagShortAddr = %s", flagShortAddr)
 	}
+
+	// Проверяем переменные окружения
+	// Если SERVER_ADDRESS установлена, то ставим ее значение, как приоритетное
+	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
+        flagRunAddr = envRunAddr
+    }
+	// Если BASE_URL установлена, то ставим ее значение, как приоритетное
+	if envBaseAddr := os.Getenv("BASE_URL"); envBaseAddr != "" {
+        flagShortAddr = envBaseAddr
+    }
+
 } 
 
 
