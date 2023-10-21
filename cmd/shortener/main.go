@@ -21,6 +21,8 @@ var urls Repository // хранилище ссылок
 
 func main() {
 
+	urls = make(Repository)
+
 	parseFlags()
 
 
