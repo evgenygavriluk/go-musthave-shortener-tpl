@@ -8,7 +8,7 @@ import (
     "strings"
     "fmt"
     "encoding/base64"
-    "errors"
+    "log"
 )
 
 func TestHandlerPost(t *testing.T){
@@ -112,12 +112,15 @@ func TestEncodeURL(t *testing.T){
     fmt.Println("TestEncodeURL")
 
     encodedURL, err := encodeURL("http://ya.ru")
+    log.Println("**encodedURL = ", encodedURL)
     if err!=nil{
         log.Fatal("Encoding URL is wrong")
     }
 
-    
-    if base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[len("http://ya.ru")-6:]!= encodedURL{
+    start := len(base64.StdEncoding.EncodeToString([]byte("http://ya.ru")))
+
+    if base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[start-6:]!= encodedURL{
+        log.Println("*** = ", base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[len("http://ya.ru")-6:])
         log.Fatal("Encoding URL is wrong")
     }
 
@@ -125,8 +128,9 @@ func TestEncodeURL(t *testing.T){
 
 func TestDecodeURL(t *testing.T){
     fmt.Println("TestDecodeURL")
+    start := len(base64.StdEncoding.EncodeToString([]byte("http://ya.ru")))
 
-    etalon, _ := urls.URLfromRepository(base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[len("http://ya.ru")-6:])
+    etalon, _ := urls.URLfromRepository(base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[start-6:])
     if etalon !="http://ya.ru"{
         log.Fatal("Encoding URL is wrong")
     }
