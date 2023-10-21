@@ -12,16 +12,17 @@ import (
 	"os"
 )
 
-var urls map[string]string // хранилище ссылок
 var flagRunAddr string
 var flagShortAddr string
+
+type Repository map[string]string 
+
+var urls Repository // хранилище ссылок
 
 func main() {
 
 	parseFlags()
 
-
-	urls = make(map[string]string)
 
 	r := chi.NewRouter()
 	r.Post("/", handlerPost)
@@ -29,13 +30,27 @@ func main() {
 
 	
 
-	fmt.Println("Server is starter")
+	log.Println("Server is starter")
 
 	log.Fatal(http.ListenAndServe(flagRunAddr, r))
+}
+
+// Добавление короткой сслки в репозиторий
+func (r Repository) URLtoRepository(url string, shortURL string) error{
+	r[shortURL] = url
+	return nil
+}
+
+// Получение исходной ссылки из репозитория по короткой
+func (r Repository) URLfromRepository(shortURL string) (string, bool){
+	if value, ok := r[shortURL]; ok {
+		return value, true
+	} 
+	return "", false
 
 }
 
-// Обработка флагов командной строкипше сруслщге
+// Обработка флагов командной строки
 func parseFlags() {
     // регистрируем переменную flagRunAddr 
     // как аргумент -a со значением :8080 по умолчанию
@@ -44,12 +59,11 @@ func parseFlags() {
     // парсим переданные серверу аргументы в зарегистрированные переменные
     flag.Parse()
 
-	fmt.Printf("flagRunAddr = %s", flagRunAddr)
-	fmt.Printf("flagShortAddr = %s", flagShortAddr)
+	log.Printf("flagRunAddr = %s flagShortAddr = %s\n", flagRunAddr, flagShortAddr)
 
-	if string(flagRunAddr)!="localhost:8080" {
+	if flagRunAddr!="localhost:8080" {
 		flagShortAddr = "http://"+flagRunAddr
-		fmt.Printf("flagShortAddr = %s", flagShortAddr)
+		log.Printf("flagShortAddr = %s\n", flagShortAddr)
 	}
 
 	// Проверяем переменные окружения
@@ -61,7 +75,6 @@ func parseFlags() {
 	if envBaseAddr := os.Getenv("BASE_URL"); envBaseAddr != "" {
         flagShortAddr = envBaseAddr
     }
-
 } 
 
 
@@ -69,7 +82,11 @@ func parseFlags() {
 func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 	fmt.Println("Отрабатывает метод", rq.Method)
 	// Проверяем, есть ли в теле запроса данные (ссылка)
-	body, _ := io.ReadAll(rq.Body)
+	body, err := io.ReadAll(rq.Body)
+
+	if err != nil {
+    	log.Fatal(err)
+	}
 
 	if string(body) != "" {
 		// Сокращаем принятую ссылку
@@ -79,12 +96,12 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 		// а также сохраняем короткую ссылку в хранилище
 
 		if err == nil {
-			urls[res] = string(body)
+			urls.URLtoRepository(string(body), res)
 			rw.Header().Set("Content-Type", "text/plain")
 			rw.WriteHeader(201)
 			rw.Write([]byte(flagShortAddr + "/" +res)) // flagShortAddr = http://localhost:8080/
 		} else {
-			panic("Something wrong in encoding")
+			rw.Write([]byte("Something wrong in encoding"))
 		}
 
 	} else {
@@ -100,7 +117,7 @@ func handlerGet(rw http.ResponseWriter, rq *http.Request) {
 	fmt.Println(urls)
 
 	// Если URL уже имеется в хранилище, возвращем в браузер ответ и делаем редирект
-	if value, ok := urls[shortURL]; ok {
+	if value, ok := urls.URLfromRepository(shortURL); ok {
 		rw.Header().Set("Location", value)
 		rw.WriteHeader(307)
 	} else {

@@ -7,6 +7,8 @@ import (
     "testing"
     "strings"
     "fmt"
+    "encoding/base64"
+    "errors"
 )
 
 func TestHandlerPost(t *testing.T){
@@ -105,3 +107,28 @@ func TestHandlerGet(t *testing.T){
     }
 
 }
+
+func TestEncodeURL(t *testing.T){
+    fmt.Println("TestEncodeURL")
+
+    encodedURL, err := encodeURL("http://ya.ru")
+    if err!=nil{
+        errors.New("Encoding URL is wrong")
+    }
+
+    
+    if base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[len("http://ya.ru")-6:]!= encodedURL{
+        errors.New("Encoding URL is wrong")
+    }
+
+}
+
+func TestDecodeURL(t *testing.T){
+    fmt.Println("TestDecodeURL")
+
+    etalon, _ := urls.URLfromRepository(base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[len("http://ya.ru")-6:])
+    if etalon !="http://ya.ru"{
+        errors.New("Encoding URL is wrong")
+    }
+}
+
