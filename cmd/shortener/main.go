@@ -7,17 +7,17 @@ import (
 	"net/http"
 	"io"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/chi/v5/middleware" //через миддлваре логирование проще
 	"log"
 	"flag"
 	"os"
-	//"go.uber.org/zap"
-	//"github.com/evgenygavriluk/go-musthave-shortener-tpl/internal/logger"
+	"go.uber.org/zap"
+	"time"
 )
 
 var flagRunAddr string
 var flagShortAddr string
-//var flagLogLevel = "InfoLevel"
+var sugar zap.SugaredLogger
 
 type Repository map[string]string 
 
@@ -26,6 +26,17 @@ var urls Repository // хранилище ссылок
 func main() {
 
 	urls = make(Repository)
+
+	// создаём предустановленный регистратор zap
+    logger, err := zap.NewDevelopment()
+    if err != nil {
+        // вызываем панику, если ошибка
+        panic(err)
+    }
+    defer logger.Sync()
+
+    // делаем регистратор SugaredLogger
+    sugar = *logger.Sugar()
 
 	parseFlags()
 
@@ -36,14 +47,12 @@ func main() {
 	r.Get("/{link}", handlerGet)
 
 	
-/*
-	if err := logger.Initialize(flagLogLevel); err != nil {
-        logger.Log.Info("Init logger error")
-    }
-    
-    logger.Log.Info("Running server", zap.String("address", flagRunAddr))
-*/
-	log.Fatal(http.ListenAndServe(flagRunAddr, r))
+
+	sugar.Infow("Starting server","addr", flagRunAddr)
+
+	if err := http.ListenAndServe(flagRunAddr, r); err!=nil{
+		sugar.Fatalw(err.Error(), "event", "start server")
+	}
 }
 
 // Добавление короткой сслки в репозиторий
@@ -92,15 +101,8 @@ func parseFlags() {
 // Обрабатывает POST-запрос. Возвращает заголовок со статусом 201, если результат Ок
 func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 
-	/*
-	if rq.Method != http.MethodPost {
-        logger.Log.Debug("got request with bad method", zap.String("method", rq.Method))
-        rw.WriteHeader(http.StatusMethodNotAllowed)
-        return
-    }
-	*/
-
-	fmt.Println("Отрабатывает метод", rq.Method)
+	start :=time.Now()
+		
 	// Проверяем, есть ли в теле запроса данные (ссылка)
 	body, err := io.ReadAll(rq.Body)
 
@@ -111,6 +113,7 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 	if string(body) != "" {
 		// Сокращаем принятую ссылку
 		res, err := encodeURL(string(body))
+		
 
 		// Если ошибки нет, возвращаем результат сокращения в заголовке
 		// а также сохраняем короткую ссылку в хранилище
@@ -120,7 +123,7 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 			rw.Header().Set("Content-Type", "text/plain")
 			rw.WriteHeader(201)
 			rw.Write([]byte(flagShortAddr + "/" +res)) // flagShortAddr = http://localhost:8080/
-			//logger.Log.Debug("sending HTTP 201 response")
+			sugar.Infoln("Status code 201, Content Length", len(flagShortAddr + "/" +res),) 
 		} else {
 			rw.Write([]byte("Something wrong in encoding"))
 		}
@@ -128,11 +131,16 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 	} else {
 		rw.WriteHeader(400)
 		rw.Write([]byte("No URL in request"))
+		sugar.Infoln("Status code 400")
 	}
+
+	duration := time.Since(start)
+	sugar.Infoln("Uri", rq.RequestURI,"Method", rq.Method, "Time", duration, "Long Link", string(body)) 
 }
 
+
 func handlerGet(rw http.ResponseWriter, rq *http.Request) {
-	fmt.Println("Отрабатывает метод", rq.Method)
+	start :=time.Now()
 	// Получаем короткий URL из запроса
 	shortURL := rq.URL.String()[1:]
 	fmt.Println(urls)
@@ -145,6 +153,8 @@ func handlerGet(rw http.ResponseWriter, rq *http.Request) {
 		rw.Header().Set("Location", "URL not found")
 		rw.WriteHeader(400)
 	}
+	duration := time.Since(start)
+	sugar.Infoln("Uri", rq.RequestURI,"Method", rq.Method, "Time", duration, "Short Link", shortURL) 
 
 }
 
