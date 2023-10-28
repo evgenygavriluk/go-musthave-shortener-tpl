@@ -9,10 +9,19 @@ import (
     "fmt"
     "encoding/base64"
     "log"
+    "go.uber.org/zap"
 )
 
+
 func TestHandlerPost(t *testing.T){
-    urls = make(map[string]string)
+    urls = make(Repository)
+    logger, err := zap.NewDevelopment()
+    if err != nil {
+        // вызываем панику, если ошибка
+        panic(err)
+    }
+    defer logger.Sync()
+    sugar = *logger.Sugar()
     
     type want struct {
         code int
