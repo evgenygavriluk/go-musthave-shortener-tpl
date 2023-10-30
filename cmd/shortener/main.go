@@ -187,7 +187,7 @@ func handlerRest(rw http.ResponseWriter, rq *http.Request) {
 
 		if err == nil {
 			urls.URLtoRepository(inData.URL, res) // Сохраняем данные в репозитории
-			rw.Header().Set("Content-Type", "text/plain")
+			rw.Header().Set("Content-Type", "application/json")
 			rw.WriteHeader(201)
 			// Сериализуем сокращенную ссылку в JSON-формат
 			resp, _ := json.MarshalIndent(outData, "", " ")
