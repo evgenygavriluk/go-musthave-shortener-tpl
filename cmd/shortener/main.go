@@ -176,7 +176,7 @@ func handlerRest(rw http.ResponseWriter, rq *http.Request) {
 
 	
 		// Сокращаем принятую ссылку
-		res, _:=encodeURL(inData.URL) // flagShortAddr = http://localhost:8080/
+		res, err:=encodeURL(inData.URL) // flagShortAddr = http://localhost:8080/
 
 		outData.Result = flagShortAddr + "/" + res
 		sugar.Infoln("inData.Url = ", inData.URL)
