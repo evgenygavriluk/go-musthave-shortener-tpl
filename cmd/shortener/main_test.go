@@ -65,6 +65,58 @@ func TestHandlerPost(t *testing.T){
     
 }
 
+func TestHandlerRest(t *testing.T){
+    urls = make(Repository)
+    logger, err := zap.NewDevelopment()
+    if err != nil {
+        // вызываем панику, если ошибка
+        panic(err)
+    }
+    defer logger.Sync()
+    sugar = *logger.Sugar()
+    
+    type want struct {
+        code int
+      }
+    tests := []struct {
+        name string
+        param string
+        want want
+    }{
+        {
+            name: "REST test 1. body doesn't consist of data",
+            param: "",
+            want: want{
+                code: 400,
+            },
+        },
+        {
+            name: "REST test 2. body consist of data",
+            param: "{\"url\": \"http://ya.ru\"}",
+            want: want{
+                code: 201,
+            },
+
+        },
+    }
+
+    for _, test := range tests {
+        t.Run(test.name, func(t *testing.T) {
+            fmt.Printf("\n\nTest %v Body %v\n", test.name, test.param)
+            param := strings.NewReader(test.param)
+            request := httptest.NewRequest(http.MethodPost, "/api/shortener", param)
+            w := httptest.NewRecorder()
+            handlerRest(w, request)
+
+            res := w.Result()
+			defer res.Body.Close()
+            fmt.Printf("want code = %d StatusCode %d\n", test.want.code, res.StatusCode)
+            assert.Equal(t, test.want.code, res.StatusCode)
+        })
+    }
+    
+}
+
 func TestHandlerGet(t *testing.T){
     type want struct {
         code int

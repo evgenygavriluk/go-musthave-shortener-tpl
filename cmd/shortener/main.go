@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -44,6 +45,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Post("/", handlerPost)
+	r.Post("/api/shorten", handlerRest)
 	r.Get("/{link}", handlerGet)
 
 	
@@ -139,11 +141,78 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 }
 
 
+// Обрабатывает REST-запрос. Возвращает заголовок со статусом 201, если результат Ок
+func handlerRest(rw http.ResponseWriter, rq *http.Request) {
+
+	type RequestData struct {
+		Url string `json:"url"`
+	}
+
+	var inData RequestData
+
+	type ResponseData struct {
+		Result string `json:"result"`
+	}
+
+	var outData ResponseData
+
+	start :=time.Now()
+
+	// Проверяем, есть ли в теле запроса данные (ссылка)
+	body, err := io.ReadAll(rq.Body)
+
+	if err != nil {
+    	log.Fatal(err)
+	}
+
+	if string(body) != "" {
+		// Десериализуем данные из входящего JSON-запроса
+		
+
+	if err = json.Unmarshal(body, &inData); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	
+		// Сокращаем принятую ссылку
+		res, _:=encodeURL(inData.Url) // flagShortAddr = http://localhost:8080/
+
+		outData.Result = flagShortAddr + "/" + res
+		sugar.Infoln("inData.Url = ", inData.Url)
+		sugar.Infoln("res = ", res)
+
+		// Если ошибки нет, возвращаем результат сокращения в заголовке в JSON-формате
+		// а также сохраняем короткую ссылку в хранилище
+
+		if err == nil {
+			urls.URLtoRepository(inData.Url, res) // Сохраняем данные в репозитории
+			rw.Header().Set("Content-Type", "text/plain")
+			rw.WriteHeader(201)
+			// Сериализуем сокращенную ссылку в JSON-формат
+			resp, _ := json.MarshalIndent(outData, "", " ")
+			rw.Write([]byte(resp))
+			sugar.Infoln("Status code 201, Content Length", len(resp)) 
+		} else {
+			rw.Write([]byte("Something wrong in encoding"))
+		}
+
+	} else {
+		rw.WriteHeader(400)
+		rw.Write([]byte("No URL in request"))
+		sugar.Infoln("Status code 400")
+	}
+
+	duration := time.Since(start)
+	sugar.Infoln("Uri", rq.RequestURI,"Method", rq.Method, "Time", duration, "Long Link", string(body)) 
+}
+
+
 func handlerGet(rw http.ResponseWriter, rq *http.Request) {
 	start :=time.Now()
 	// Получаем короткий URL из запроса
 	shortURL := rq.URL.String()[1:]
-	fmt.Println(urls)
+	fmt.Println("urls = ", urls)
 
 	// Если URL уже имеется в хранилище, возвращем в браузер ответ и делаем редирект
 	if value, ok := urls.URLfromRepository(shortURL); ok {
