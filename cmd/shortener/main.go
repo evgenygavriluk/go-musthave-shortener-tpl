@@ -145,7 +145,7 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 func handlerRest(rw http.ResponseWriter, rq *http.Request) {
 
 	type RequestData struct {
-		Url string `json:"url"`
+		URL string `json:"url"`
 	}
 
 	var inData RequestData
@@ -176,17 +176,17 @@ func handlerRest(rw http.ResponseWriter, rq *http.Request) {
 
 	
 		// Сокращаем принятую ссылку
-		res, _:=encodeURL(inData.Url) // flagShortAddr = http://localhost:8080/
+		res, _:=encodeURL(inData.URL) // flagShortAddr = http://localhost:8080/
 
 		outData.Result = flagShortAddr + "/" + res
-		sugar.Infoln("inData.Url = ", inData.Url)
+		sugar.Infoln("inData.Url = ", inData.URL)
 		sugar.Infoln("res = ", res)
 
 		// Если ошибки нет, возвращаем результат сокращения в заголовке в JSON-формате
 		// а также сохраняем короткую ссылку в хранилище
 
 		if err == nil {
-			urls.URLtoRepository(inData.Url, res) // Сохраняем данные в репозитории
+			urls.URLtoRepository(inData.URL, res) // Сохраняем данные в репозитории
 			rw.Header().Set("Content-Type", "text/plain")
 			rw.WriteHeader(201)
 			// Сериализуем сокращенную ссылку в JSON-формат
