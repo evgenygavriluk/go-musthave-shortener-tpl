@@ -44,6 +44,7 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(middleware.Compress(5))
 	r.Post("/", handlerPost)
 	r.Post("/api/shorten", handlerRest)
 	r.Get("/{link}", handlerGet)
