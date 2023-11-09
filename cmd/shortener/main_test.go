@@ -1,10 +1,7 @@
 package main
 
 import (
-    "compress/gzip"
-    "bytes"
     "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
     "net/http"
     "net/http/httptest"
     "testing"
@@ -13,8 +10,6 @@ import (
     "encoding/base64"
     "log"
     "go.uber.org/zap"
-    "github.com/go-chi/chi/v5"
-    "io"
 )
 
 
