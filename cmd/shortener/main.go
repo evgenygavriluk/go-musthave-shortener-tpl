@@ -16,83 +16,115 @@ import (
 	"go.uber.org/zap"
 	"time"
 	"strings"
+	"bufio"
 )
 
-var flagRunAddr string
-var flagShortAddr string
-var sugar zap.SugaredLogger
+var (
+	flagRunAddr string
+	flagShortAddr string
+	flagFileStoragePath string
+	sugar zap.SugaredLogger
+)
 
-type Repository map[string]string 
-
-var urls Repository // хранилище ссылок
-
-// compressWriter реализует интерфейс http.ResponseWriter и позволяет прозрачно для сервера
-// сжимать передаваемые данные и выставлять правильные HTTP-заголовки
-type compressWriter struct {
-    w  http.ResponseWriter
-    zw *gzip.Writer
+type URL struct {
+	Id          int    `json:"uuid"`
+	ShortURL    string `json:"short_url"`
+	OriginalUrl string `json:"original_url"`
 }
 
-func newCompressWriter(w http.ResponseWriter) *compressWriter {
-    return &compressWriter{
-        w:  w,
-        zw: gzip.NewWriter(w),
-    }
-}
-
-func (c *compressWriter) Header() http.Header {
-    return c.w.Header()
-}
-
-func (c *compressWriter) Write(p []byte) (int, error) {
-    return c.zw.Write(p)
-}
-
-func (c *compressWriter) WriteHeader(statusCode int) {
-    if statusCode < 300 {
-        c.w.Header().Set("Content-Encoding", "gzip")
-    }
-    c.w.WriteHeader(statusCode)
-}
-
-// Close закрывает gzip.Writer и досылает все данные из буфера.
-func (c *compressWriter) Close() error {
-    return c.zw.Close()
-}
-
-// compressReader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера
-// декомпрессировать получаемые от клиента данные
-type compressReader struct {
-    r  io.ReadCloser
-    zr *gzip.Reader
-}
-
-func newCompressReader(r io.ReadCloser) (*compressReader, error) {
-    zr, err := gzip.NewReader(r)
-    if err != nil {
-        return nil, err
-    }
-
-    return &compressReader{
-        r:  r,
-        zr: zr,
-    }, nil
-}
-
-func (c compressReader) Read(p []byte) (n int, err error) {
-    return c.zr.Read(p)
-}
-
-func (c *compressReader) Close() error {
-    if err := c.r.Close(); err != nil {
-        return err
-    }
-    return c.zr.Close()
+type Repository struct{
+	file *os.File
+	Counter int
+	Base map[string]URL
+	
 } 
+
+
+
+func NewRepository() *Repository{
+
+	// Открываем файл для записи или создаем, если он не существует
+	file, err :=os.OpenFile(flagFileStoragePath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		sugar.Infoln("Can not open file ", flagFileStoragePath)
+	} else {
+		sugar.Infoln(flagFileStoragePath, "is opened")
+	}
+
+	base := make(map[string]URL)
+
+	return &Repository{
+		file: file,
+		Counter: 0,
+		Base: base,
+	}
+}
+
+// Если файл существует, читаем из него все данные и записываем в репозиторий
+func (r *Repository) fillRepository(){
+	var scanner *bufio.Scanner
+	var repo URL
+
+	scanner = bufio.NewScanner(r.file)
+
+	for scanner.Scan() {
+		data := scanner.Bytes()
+    
+		fmt.Printf("data = %v", string(data))
+		err := json.Unmarshal(data, &repo)
+		if err != nil {
+			log.Println(err)
+		}
+
+		r.Base[repo.ShortURL] = URL{
+			Id: repo.Id,
+			ShortURL: repo.ShortURL,
+			OriginalUrl: repo.OriginalUrl,
+		}
+		r.Counter++
+    }
+} 
+
+// Добавление короткой ссылки в репозиторий
+func (r *Repository) URLtoRepository(url string, shortURL string) error{
+	var writer *bufio.Writer
+	if _, ok := r.Base[shortURL]; !ok{
+	
+		r.Counter++
+
+		r.Base[shortURL] = URL{
+			Id: r.Counter,
+			ShortURL: shortURL,
+			OriginalUrl: url,
+		}
+		// сохраняем ссылку в файл
+
+		json, _ := json.Marshal(r.Base[shortURL])
+		writer = bufio.NewWriter(r.file)
+		writer.Write(json)
+		writer.WriteByte('\n')
+		if err:=writer.Flush(); err!=nil{
+			fmt.Printf("err %v", err)
+		}
+	}
+	
+	return nil
+}
+
+// Получение исходной ссылки из репозитория по короткой
+func (r *Repository) URLfromRepository(shortURL string) (string, bool){
+	if value, ok := r.Base[shortURL]; ok {
+		return value.OriginalUrl, true
+	} 
+	return "", false
+
+}
+
+var urls *Repository
+
 
 func main() {
 
-	urls = make(Repository)
 
 	// создаём предустановленный регистратор zap
     logger, err := zap.NewDevelopment()
@@ -107,6 +139,10 @@ func main() {
 
 	parseFlags()
 
+	urls = NewRepository()
+	urls.fillRepository()
+
+	log.Printf("urls", urls)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -121,6 +157,9 @@ func main() {
 	if err := http.ListenAndServe(flagRunAddr, gzipMiddleware(r)); err!=nil{
 		sugar.Fatalw(err.Error(), "event", "start server")
 	}
+
+	defer urls.file.Close()
+
 }
 
 func gzipMiddleware(h http.Handler) http.HandlerFunc {
@@ -161,20 +200,6 @@ func gzipMiddleware(h http.Handler) http.HandlerFunc {
     }
 }
 
-// Добавление короткой сслки в репозиторий
-func (r Repository) URLtoRepository(url string, shortURL string) error{
-	r[shortURL] = url
-	return nil
-}
-
-// Получение исходной ссылки из репозитория по короткой
-func (r Repository) URLfromRepository(shortURL string) (string, bool){
-	if value, ok := r[shortURL]; ok {
-		return value, true
-	} 
-	return "", false
-
-}
 
 // Обработка флагов командной строки
 func parseFlags() {
@@ -182,6 +207,7 @@ func parseFlags() {
     // как аргумент -a со значением :8080 по умолчанию
     flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flagShortAddr, "b", "http://localhost:8080", "base address and port to short URL")
+	flag.StringVar(&flagFileStoragePath, "f", "/tmp/short-url-db.json", "full name for file repository")
     // парсим переданные серверу аргументы в зарегистрированные переменные
     flag.Parse()
 
@@ -201,6 +227,10 @@ func parseFlags() {
 	if envBaseAddr := os.Getenv("BASE_URL"); envBaseAddr != "" {
         flagShortAddr = envBaseAddr
     }
+	// Если FILE_STORAGE_PATH установлена, то ставим ее значение, как приоритетное
+	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath !=""{
+		flagFileStoragePath = envFileStoragePath
+	}
 } 
 
 
@@ -288,7 +318,7 @@ func handlerRest(rw http.ResponseWriter, rq *http.Request) {
 
 		// Если ошибки нет, возвращаем результат сокращения в заголовке в JSON-формате
 		// а также сохраняем короткую ссылку в хранилище
-
+	
 		if err == nil {
 			urls.URLtoRepository(inData.URL, res) // Сохраняем данные в репозитории
 			rw.Header().Set("Content-Type", "application/json")
@@ -316,11 +346,12 @@ func handlerGet(rw http.ResponseWriter, rq *http.Request) {
 	start :=time.Now()
 	// Получаем короткий URL из запроса
 	shortURL := rq.URL.String()[1:]
+
 	fmt.Println("urls = ", urls)
 
 	// Если URL уже имеется в хранилище, возвращем в браузер ответ и делаем редирект
 	if value, ok := urls.URLfromRepository(shortURL); ok {
-		rw.Header().Set("Location", value)
+		rw.Header().Set("Location", string(value))
 		rw.WriteHeader(307)
 	} else {
 		rw.Header().Set("Location", "URL not found")
@@ -349,8 +380,72 @@ func encodeURL(url string) (string, error) {
 // Функция декодирования URL в адрес полной длины
 func decodeURL(shortURL string) (string, error) {
 	// Ищем shortUrl в хранилище как ключ, если есть, позвращаем значение из мапы по данному ключу
-	if value, ok := urls[shortURL]; ok {
-		return value, nil
+	if value, ok := urls.Base[shortURL]; ok {
+		return value.OriginalUrl, nil
 	}
 	return "", errors.New("short URL not foud")
 }
+
+// compressWriter реализует интерфейс http.ResponseWriter и позволяет прозрачно для сервера
+// сжимать передаваемые данные и выставлять правильные HTTP-заголовки
+type compressWriter struct {
+    w  http.ResponseWriter
+    zw *gzip.Writer
+}
+
+func newCompressWriter(w http.ResponseWriter) *compressWriter {
+    return &compressWriter{
+        w:  w,
+        zw: gzip.NewWriter(w),
+    }
+}
+
+func (c *compressWriter) Header() http.Header {
+    return c.w.Header()
+}
+
+func (c *compressWriter) Write(p []byte) (int, error) {
+    return c.zw.Write(p)
+}
+
+func (c *compressWriter) WriteHeader(statusCode int) {
+    if statusCode < 300 {
+        c.w.Header().Set("Content-Encoding", "gzip")
+    }
+    c.w.WriteHeader(statusCode)
+}
+
+// Close закрывает gzip.Writer и досылает все данные из буфера.
+func (c *compressWriter) Close() error {
+    return c.zw.Close()
+}
+
+// compressReader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера
+// декомпрессировать получаемые от клиента данные
+type compressReader struct {
+    r  io.ReadCloser
+    zr *gzip.Reader
+}
+
+func newCompressReader(r io.ReadCloser) (*compressReader, error) {
+    zr, err := gzip.NewReader(r)
+    if err != nil {
+        return nil, err
+    }
+
+    return &compressReader{
+        r:  r,
+        zr: zr,
+    }, nil
+}
+
+func (c compressReader) Read(p []byte) (n int, err error) {
+    return c.zr.Read(p)
+}
+
+func (c *compressReader) Close() error {
+    if err := c.r.Close(); err != nil {
+        return err
+    }
+    return c.zr.Close()
+} 
