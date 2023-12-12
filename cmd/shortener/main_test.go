@@ -16,6 +16,7 @@ import (
 func TestHandlerPost(t *testing.T){
     parseFlags()
     Urls = NewRepository()
+    Urls.fillRepository()
 
     logger, err := zap.NewDevelopment()
     fmt.Println("Repositoty = ", Urls)
