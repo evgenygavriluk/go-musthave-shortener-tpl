@@ -29,7 +29,7 @@ var (
 type URL struct {
 	Id          int    `json:"uuid"`
 	ShortURL    string `json:"short_url"`
-	OriginalUrl string `json:"original_url"`
+	OriginalURL string `json:"original_url"`
 }
 
 type Repository struct{
@@ -83,7 +83,7 @@ func (r *Repository) fillRepository(){
 		r.Base[repo.ShortURL] = URL{
 			Id: repo.Id,
 			ShortURL: repo.ShortURL,
-			OriginalUrl: repo.OriginalUrl,
+			OriginalURL: repo.OriginalURL,
 		}
 		r.Counter++
     }
@@ -99,7 +99,7 @@ func (r *Repository) URLtoRepository(url string, shortURL string) error{
 		r.Base[shortURL] = URL{
 			Id: r.Counter,
 			ShortURL: shortURL,
-			OriginalUrl: url,
+			OriginalURL: url,
 		}
 		// сохраняем ссылку в файл
 
@@ -118,7 +118,7 @@ func (r *Repository) URLtoRepository(url string, shortURL string) error{
 // Получение исходной ссылки из репозитория по короткой
 func (r *Repository) URLfromRepository(shortURL string) (string, bool){
 	if value, ok := r.Base[shortURL]; ok {
-		return value.OriginalUrl, true
+		return value.OriginalURL, true
 	} 
 	return "", false
 
@@ -385,7 +385,7 @@ func encodeURL(url string) (string, error) {
 func decodeURL(shortURL string) (string, error) {
 	// Ищем shortUrl в хранилище как ключ, если есть, позвращаем значение из мапы по данному ключу
 	if value, ok := Urls.Base[shortURL]; ok {
-		return value.OriginalUrl, nil
+		return value.OriginalURL, nil
 	}
 	return "", errors.New("short URL not foud")
 }

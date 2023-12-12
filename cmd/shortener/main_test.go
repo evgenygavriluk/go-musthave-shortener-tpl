@@ -152,7 +152,7 @@ func TestHandlerGet(t *testing.T){
                 addr =""
             } else {
                 for k, v := range Urls.Base {
-                    if v.OriginalUrl == test.body {
+                    if v.OriginalURL == test.body {
                         addr = k
                     }
                 }
