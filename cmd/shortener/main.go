@@ -27,7 +27,7 @@ var (
 )
 
 type URL struct {
-	Id          int    `json:"uuid"`
+	ID          int    `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
@@ -81,7 +81,7 @@ func (r *Repository) fillRepository(){
 		}
 
 		r.Base[repo.ShortURL] = URL{
-			Id: repo.Id,
+			ID: repo.ID,
 			ShortURL: repo.ShortURL,
 			OriginalURL: repo.OriginalURL,
 		}
@@ -97,7 +97,7 @@ func (r *Repository) URLtoRepository(url string, shortURL string) error{
 		r.Counter++
 
 		r.Base[shortURL] = URL{
-			Id: r.Counter,
+			ID: r.Counter,
 			ShortURL: shortURL,
 			OriginalURL: url,
 		}
