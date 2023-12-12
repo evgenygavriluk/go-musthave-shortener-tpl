@@ -14,8 +14,11 @@ import (
 
 
 func TestHandlerPost(t *testing.T){
-    urls = make(Repository)
+    parseFlags()
+    Urls = NewRepository()
+
     logger, err := zap.NewDevelopment()
+    fmt.Println("Repositoty = ", Urls)
     if err != nil {
         // вызываем панику, если ошибка
         panic(err)
@@ -66,7 +69,7 @@ func TestHandlerPost(t *testing.T){
 }
 
 func TestHandlerRest(t *testing.T){
-    urls = make(Repository)
+
     logger, err := zap.NewDevelopment()
     if err != nil {
         // вызываем панику, если ошибка
@@ -148,8 +151,8 @@ func TestHandlerGet(t *testing.T){
             if test.body == "/"{
                 addr =""
             } else {
-                for k, v := range urls {
-                    if v == test.body {
+                for k, v := range Urls.Base {
+                    if v.OriginalUrl == test.body {
                         addr = k
                     }
                 }
@@ -190,7 +193,7 @@ func TestDecodeURL(t *testing.T){
     fmt.Println("TestDecodeURL")
     start := len(base64.StdEncoding.EncodeToString([]byte("http://ya.ru")))
 
-    etalon, _ := urls.URLfromRepository(base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[start-6:])
+    etalon, _ := Urls.URLfromRepository(base64.StdEncoding.EncodeToString([]byte("http://ya.ru"))[start-6:])
     if etalon !="http://ya.ru"{
         log.Fatal("Encoding URL is wrong")
     }

@@ -22,7 +22,7 @@ import (
 var (
 	flagRunAddr string
 	flagShortAddr string
-	flagFileStoragePath string
+	FlagFileStoragePath string
 	sugar zap.SugaredLogger
 )
 
@@ -33,7 +33,7 @@ type URL struct {
 }
 
 type Repository struct{
-	file *os.File
+	File *os.File
 	Counter int
 	Base map[string]URL
 	
@@ -44,19 +44,23 @@ type Repository struct{
 func NewRepository() *Repository{
 
 	// Открываем файл для записи или создаем, если он не существует
-	file, err :=os.OpenFile(flagFileStoragePath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	File, err :=os.OpenFile(FlagFileStoragePath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+
+	fmt.Printf("Err = %v", err)
 	if err != nil {
-		sugar.Infoln("Can not open file ", flagFileStoragePath)
-	} else {
-		sugar.Infoln(flagFileStoragePath, "is opened")
+		sugar.Infoln("Can not open file ", FlagFileStoragePath)
 	}
 
-	base := make(map[string]URL)
+	Base := make(map[string]URL)
+
+	fmt.Println(Repository{File: File, Counter: 0, Base: Base})
+
+	fmt.Println("* = ", Base)
 
 	return &Repository{
-		file: file,
+		File: File,
 		Counter: 0,
-		Base: base,
+		Base: Base,
 	}
 }
 
@@ -65,7 +69,7 @@ func (r *Repository) fillRepository(){
 	var scanner *bufio.Scanner
 	var repo URL
 
-	scanner = bufio.NewScanner(r.file)
+	scanner = bufio.NewScanner(r.File)
 
 	for scanner.Scan() {
 		data := scanner.Bytes()
@@ -100,7 +104,7 @@ func (r *Repository) URLtoRepository(url string, shortURL string) error{
 		// сохраняем ссылку в файл
 
 		json, _ := json.Marshal(r.Base[shortURL])
-		writer = bufio.NewWriter(r.file)
+		writer = bufio.NewWriter(r.File)
 		writer.Write(json)
 		writer.WriteByte('\n')
 		if err:=writer.Flush(); err!=nil{
@@ -120,7 +124,7 @@ func (r *Repository) URLfromRepository(shortURL string) (string, bool){
 
 }
 
-var urls *Repository
+var Urls *Repository
 
 
 func main() {
@@ -139,10 +143,10 @@ func main() {
 
 	parseFlags()
 
-	urls = NewRepository()
-	urls.fillRepository()
+	Urls = NewRepository()
+	Urls.fillRepository()
 
-	log.Printf("urls", urls)
+	log.Println("urls", Urls)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -158,7 +162,7 @@ func main() {
 		sugar.Fatalw(err.Error(), "event", "start server")
 	}
 
-	defer urls.file.Close()
+	defer Urls.File.Close()
 
 }
 
@@ -207,11 +211,9 @@ func parseFlags() {
     // как аргумент -a со значением :8080 по умолчанию
     flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flagShortAddr, "b", "http://localhost:8080", "base address and port to short URL")
-	flag.StringVar(&flagFileStoragePath, "f", "/tmp/short-url-db.json", "full name for file repository")
+	flag.StringVar(&FlagFileStoragePath, "f", "/tmp/short-url-db.json", "full name for file repository")
     // парсим переданные серверу аргументы в зарегистрированные переменные
     flag.Parse()
-
-	log.Printf("flagRunAddr = %s flagShortAddr = %s\n", flagRunAddr, flagShortAddr)
 
 	if flagRunAddr!="localhost:8080" {
 		flagShortAddr = "http://"+flagRunAddr
@@ -229,8 +231,10 @@ func parseFlags() {
     }
 	// Если FILE_STORAGE_PATH установлена, то ставим ее значение, как приоритетное
 	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath !=""{
-		flagFileStoragePath = envFileStoragePath
+		FlagFileStoragePath = envFileStoragePath
 	}
+
+	log.Printf("flagRunAddr = %s flagShortAddr = %s lagFileStoragePat = %s\n" , flagRunAddr, flagShortAddr, FlagFileStoragePath)
 } 
 
 
@@ -255,7 +259,7 @@ func handlerPost(rw http.ResponseWriter, rq *http.Request) {
 		// а также сохраняем короткую ссылку в хранилище
 
 		if err == nil {
-			urls.URLtoRepository(string(body), res)
+			Urls.URLtoRepository(string(body), res)
 			rw.Header().Set("Content-Type", "text/plain")
 			rw.WriteHeader(201)
 			rw.Write([]byte(flagShortAddr + "/" +res)) // flagShortAddr = http://localhost:8080/
@@ -320,7 +324,7 @@ func handlerRest(rw http.ResponseWriter, rq *http.Request) {
 		// а также сохраняем короткую ссылку в хранилище
 	
 		if err == nil {
-			urls.URLtoRepository(inData.URL, res) // Сохраняем данные в репозитории
+			Urls.URLtoRepository(inData.URL, res) // Сохраняем данные в репозитории
 			rw.Header().Set("Content-Type", "application/json")
 			rw.WriteHeader(201)
 			// Сериализуем сокращенную ссылку в JSON-формат
@@ -347,10 +351,10 @@ func handlerGet(rw http.ResponseWriter, rq *http.Request) {
 	// Получаем короткий URL из запроса
 	shortURL := rq.URL.String()[1:]
 
-	fmt.Println("urls = ", urls)
+	fmt.Println("urls = ", Urls)
 
 	// Если URL уже имеется в хранилище, возвращем в браузер ответ и делаем редирект
-	if value, ok := urls.URLfromRepository(shortURL); ok {
+	if value, ok := Urls.URLfromRepository(shortURL); ok {
 		rw.Header().Set("Location", string(value))
 		rw.WriteHeader(307)
 	} else {
@@ -380,7 +384,7 @@ func encodeURL(url string) (string, error) {
 // Функция декодирования URL в адрес полной длины
 func decodeURL(shortURL string) (string, error) {
 	// Ищем shortUrl в хранилище как ключ, если есть, позвращаем значение из мапы по данному ключу
-	if value, ok := urls.Base[shortURL]; ok {
+	if value, ok := Urls.Base[shortURL]; ok {
 		return value.OriginalUrl, nil
 	}
 	return "", errors.New("short URL not foud")
