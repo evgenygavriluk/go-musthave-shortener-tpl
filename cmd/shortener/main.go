@@ -53,10 +53,6 @@ func NewRepository() *Repository{
 
 	Base := make(map[string]URL)
 
-	fmt.Println(Repository{File: File, Counter: 0, Base: Base})
-
-	fmt.Println("* = ", Base)
-
 	return &Repository{
 		File: File,
 		Counter: 0,
@@ -74,7 +70,6 @@ func (r *Repository) fillRepository(){
 	for scanner.Scan() {
 		data := scanner.Bytes()
     
-		fmt.Printf("data = %v", string(data))
 		err := json.Unmarshal(data, &repo)
 		if err != nil {
 			log.Println(err)
